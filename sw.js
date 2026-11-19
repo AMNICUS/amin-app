@@ -1,7 +1,7 @@
 /* Service Worker von AMIN (Cache-Namen mit dua- bleiben, damit gespeicherte Aufnahmen erhalten bleiben) (Vorlage, web_bauen.py setzt Version und Namen ein).
    Shell (index.html, Manifest, Icons) wird sofort gecacht. Audio und Gebetsclips werden beim ersten Abspielen gecacht (cache-first, mit Range-Antworten fuer Safari)
    oder ueber den Knopf "Alles offline speichern". Alte Caches werden beim Aktivieren geloescht. */
-var VERSION = "d955400416";
+var VERSION = "2374d779b1";
 var SHELL = "dua-shell-" + VERSION;
 var AUDIO = "dua-audio-v1";
 var SHELL_DATEIEN = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-192.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];

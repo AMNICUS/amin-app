@@ -476,28 +476,15 @@ h3.abschn{margin-top:14px}
 .prompter .pr-block:not(.jetzt) .pl-zeile .ar{font-size:1.35rem;line-height:1.7}
 .prompter .pr-ende{height:60%}
 .pl-zeile.gesagt{opacity:.55}
- /* Figur und Text nebeneinander, auf allen Geraeten */
-.pl-wrap.mit-video{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);grid-template-rows:minmax(0,1fr) auto;column-gap:12px}
-.pl-wrap.mit-video .pl-buehne{grid-column:1;grid-row:1;height:auto;min-height:0;max-height:none;display:flex;flex-direction:column}
-.pl-wrap.mit-video .pl-stage.vf-stage{flex:1;height:auto;min-height:0}
-.pl-wrap.mit-video .pl-karte{grid-column:2;grid-row:1;margin-top:0}
-.pl-wrap.mit-video .pl-leiste{grid-column:1 / span 2;grid-row:2}
+ /* Figur und Text nebeneinander ab 600 px, am Handy untereinander (Text breiter) */
+@media (min-width:600px){
+ .pl-wrap.mit-video{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);grid-template-rows:minmax(0,1fr) auto;column-gap:12px}
+ .pl-wrap.mit-video .pl-buehne{grid-column:1;grid-row:1;height:auto;min-height:0;max-height:none;display:flex;flex-direction:column}
+ .pl-wrap.mit-video .pl-stage.vf-stage{flex:1;height:auto;min-height:0}
+ .pl-wrap.mit-video .pl-karte{grid-column:2;grid-row:1;margin-top:0}
+ .pl-wrap.mit-video .pl-leiste{grid-column:1 / span 2;grid-row:2}
+}
 @media (min-width:900px){.pl-wrap.mit-video{grid-template-columns:minmax(380px,1fr) minmax(0,1.3fr)}}
-@media (max-width:600px){
- .pl-wrap.mit-video{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);column-gap:6px}
- .pl-wrap.mit-video .pl-kopfzeile{padding:4px 4px 2px}
- .pl-wrap.mit-video .pl-raka{font-size:.75rem}
- .pl-wrap.mit-video .pl-gender button{font-size:.75rem;padding:3px 7px}
- .pl-wrap.mit-video .pl-karte{padding:6px}
- .pl-wrap.mit-video .pl-titel{font-size:1rem}
- .pl-wrap.mit-video .pl-zeile{padding:3px 5px}
- .pl-wrap.mit-video .pl-zeile .ar{font-size:1.3rem;line-height:1.7}
- .pl-wrap.mit-video .pl-zeile .laut{font-size:.9rem}
- .pl-wrap.mit-video .pl-zeile .de{font-size:.8rem}
- .pl-wrap.mit-video .prompter .pr-block:not(.jetzt) .pl-zeile .ar{font-size:1.1rem}
- .pl-wrap.mit-video .pl-zaehler i{min-width:28px;height:28px}
-}
-}
 
 </style>
 </head>
@@ -10958,7 +10945,7 @@ window.WISSEN_DATA = {
           add({ haltung: "haende_binden", art: "taawwudh", rakaNr: r, titel: pre(r, "Ta'awwudh"), zeilen: zl(api, "taawwudh"), text: ausf ? txt(api, "zwei_rakat", 5) : "" });
         }
         add({ haltung: "haende_binden", art: "basmala", rakaNr: r, titel: pre(r, "Basmala"), zeilen: zl(api, "basmala"), text: ausf ? txt(api, "zwei_rakat", 6) : "" });
-        add({ haltung: "haende_binden", art: "fatiha", rakaNr: r, titel: pre(r, "Fatiha"), zeilen: zl(api, "fatiha"), text: ausf ? txt(api, "zwei_rakat", 7) : "" });
+        add({ haltung: "haende_binden", art: "fatiha", rakaNr: r, titel: pre(r, "Fatiha"), zeilen: zl(api, "fatiha", 1), /* ohne Basmala, die kommt im Schritt davor */ text: ausf ? txt(api, "zwei_rakat", 7) : "" });
         if (sure) add({ haltung: "haende_binden", art: "amin", rakaNr: r, titel: pre(r, "Amin (leise)"), zeilen: zl(api, "amin"), text: ausf ? txt(api, "zwei_rakat", 8) : "" });
         if (sure) {
           var sid = P.sure[(r - 1) % P.sure.length], sd = api.byId(sid);
