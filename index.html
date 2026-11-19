@@ -461,7 +461,7 @@ h3.abschn{margin-top:14px}
 .ueber-liste{margin:8px 0 0;padding-left:20px}
 .ueber-liste li{margin:6px 0}
 /* Video-Figur im Gebet (Webversion) */
-.pl-stage.vf-stage{height:clamp(170px,30vh,420px)}
+.pl-stage.vf-stage{height:clamp(170px,30vh,420px);min-height:0}
 .pl-wrap.mit-video .pl-kopfzeile{flex-wrap:wrap;gap:6px}
 .vf{position:relative;width:100%;height:100%;border-radius:16px;overflow:hidden;background:linear-gradient(#f6d4b9,#f9dbc3)}
 .vf img,.vf video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transition:opacity .18s linear}
@@ -476,12 +476,27 @@ h3.abschn{margin-top:14px}
 .prompter .pr-block:not(.jetzt) .pl-zeile .ar{font-size:1.35rem;line-height:1.7}
 .prompter .pr-ende{height:60%}
 .pl-zeile.gesagt{opacity:.55}
-@media (min-width:900px){
- .pl-wrap.mit-video{display:grid;grid-template-columns:minmax(380px,1fr) minmax(0,1.3fr);grid-template-rows:minmax(0,1fr) auto;column-gap:12px}
- .pl-wrap.mit-video .pl-buehne{grid-column:1;grid-row:1;height:auto;max-height:none;display:flex;flex-direction:column}
- .pl-wrap.mit-video .pl-stage.vf-stage{flex:1;height:auto;min-height:0}
- .pl-wrap.mit-video .pl-karte{grid-column:2;grid-row:1;margin-top:0}
- .pl-wrap.mit-video .pl-leiste{grid-column:1 / span 2;grid-row:2}
+ /* Figur und Text nebeneinander, auf allen Geraeten */
+.pl-wrap.mit-video{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);grid-template-rows:minmax(0,1fr) auto;column-gap:12px}
+.pl-wrap.mit-video .pl-buehne{grid-column:1;grid-row:1;height:auto;min-height:0;max-height:none;display:flex;flex-direction:column}
+.pl-wrap.mit-video .pl-stage.vf-stage{flex:1;height:auto;min-height:0}
+.pl-wrap.mit-video .pl-karte{grid-column:2;grid-row:1;margin-top:0}
+.pl-wrap.mit-video .pl-leiste{grid-column:1 / span 2;grid-row:2}
+@media (min-width:900px){.pl-wrap.mit-video{grid-template-columns:minmax(380px,1fr) minmax(0,1.3fr)}}
+@media (max-width:600px){
+ .pl-wrap.mit-video{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);column-gap:6px}
+ .pl-wrap.mit-video .pl-kopfzeile{padding:4px 4px 2px}
+ .pl-wrap.mit-video .pl-raka{font-size:.75rem}
+ .pl-wrap.mit-video .pl-gender button{font-size:.75rem;padding:3px 7px}
+ .pl-wrap.mit-video .pl-karte{padding:6px}
+ .pl-wrap.mit-video .pl-titel{font-size:1rem}
+ .pl-wrap.mit-video .pl-zeile{padding:3px 5px}
+ .pl-wrap.mit-video .pl-zeile .ar{font-size:1.3rem;line-height:1.7}
+ .pl-wrap.mit-video .pl-zeile .laut{font-size:.9rem}
+ .pl-wrap.mit-video .pl-zeile .de{font-size:.8rem}
+ .pl-wrap.mit-video .prompter .pr-block:not(.jetzt) .pl-zeile .ar{font-size:1.1rem}
+ .pl-wrap.mit-video .pl-zaehler i{min-width:28px;height:28px}
+}
 }
 
 </style>
