@@ -1,1 +1,1 @@
-# amin-app
+AMIN: Duas, Gebet und Suren lernen. Gratis, ohne Anmeldung, Daten bleiben auf dem Gerät. Rezitation: Mishary Rashid Alafasy (everyayah.com). Quran-Text: Tanzil Project (tanzil.net). Nicht kommerziell.
