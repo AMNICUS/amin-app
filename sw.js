@@ -1,7 +1,7 @@
 /* Service Worker von AMIN (Cache-Namen mit dua- bleiben, damit gespeicherte Aufnahmen erhalten bleiben) (Vorlage, web_bauen.py setzt Version und Namen ein).
-   Shell (index.html, Manifest, Icons) wird sofort gecacht. Audio wird beim ersten Abspielen gecacht (cache-first, mit Range-Antworten fuer Safari)
+   Shell (index.html, Manifest, Icons) wird sofort gecacht. Audio und Gebetsclips werden beim ersten Abspielen gecacht (cache-first, mit Range-Antworten fuer Safari)
    oder ueber den Knopf "Alles offline speichern". Alte Caches werden beim Aktivieren geloescht. */
-var VERSION = "d16171683f";
+var VERSION = "3cbcf2208e";
 var SHELL = "dua-shell-" + VERSION;
 var AUDIO = "dua-audio-v1";
 var SHELL_DATEIEN = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-192.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
@@ -19,7 +19,7 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  if (/\.mp3$/i.test(url.pathname)) { e.respondWith(audio(req)); return; }
+  if (/\.mp3$/i.test(url.pathname) || /\/gebet\/.+\.(mp4|jpg)$/i.test(url.pathname)) { e.respondWith(audio(req)); return; }
   e.respondWith(shell(req));
 });
 function shell(req) {
@@ -49,7 +49,7 @@ function audio(req) {
       if (m[1] === "") { s = Math.max(0, size - parseInt(m[2], 10)); en = size - 1; }
       else { s = parseInt(m[1], 10); en = m[2] === "" ? size - 1 : Math.min(parseInt(m[2], 10), size - 1); }
       if (s >= size || s > en) return new Response("", { status: 416, headers: { "Content-Range": "bytes */" + size } });
-      return new Response(b.slice(s, en + 1), { status: 206, headers: { "Content-Type": "audio/mpeg", "Content-Range": "bytes " + s + "-" + en + "/" + size, "Content-Length": String(en - s + 1), "Accept-Ranges": "bytes" } });
+      return new Response(b.slice(s, en + 1), { status: 206, headers: { "Content-Type": r.headers.get("Content-Type") || (/\.mp4$/i.test(req.url) ? "video/mp4" : "audio/mpeg"), "Content-Range": "bytes " + s + "-" + en + "/" + size, "Content-Length": String(en - s + 1), "Accept-Ranges": "bytes" } });
     });
   }).catch(function () { return new Response("", { status: 504 }); });
 }

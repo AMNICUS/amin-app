@@ -460,6 +460,11 @@ h3.abschn{margin-top:14px}
 .rezitation a,.ueber-liste a{color:var(--prim);font-weight:700}
 .ueber-liste{margin:8px 0 0;padding-left:20px}
 .ueber-liste li{margin:6px 0}
+/* Video-Figur im Gebet (Webversion) */
+.pl-stage.vf-stage{height:clamp(220px,46vh,560px)}
+.vf{position:relative;width:100%;height:100%;border-radius:16px;overflow:hidden;background:linear-gradient(#f6d4b9,#f9dbc3)}
+.vf img,.vf video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transition:opacity .18s linear}
+.vf video{opacity:0}
 
 </style>
 </head>
@@ -10863,14 +10868,18 @@ window.WISSEN_DATA = {
 /* Player fuer "Gebet ansehen" und "Wudu ansehen": Ablauf aus gebet.js und duas.js, Figur oder Szene, Sprache, Steuerung. Offline. */
 (function () {
   "use strict";
+  /* Hanafi: Sunna und Fard zusammen (Entscheid 19.11.2026, mit Imam pruefen). teile: Reihenfolge der Einheiten, r = Fard-Rak'at */
   var PAR = {
-    fadschr: { titel: "Fadschr", r: 2, sure: ["kauthar", "ikhlas"] },
-    dhuhr: { titel: "Dhuhr", r: 4, sure: ["asr", "kauthar"] },
-    asr: { titel: "Asr", r: 4, sure: ["kauthar", "nasr"] },
-    maghrib: { titel: "Maghrib", r: 3, sure: ["kauthar", "ikhlas"] },
-    ischa: { titel: "Ischa", r: 4, sure: ["nasr", "ikhlas"] },
-    witr: { titel: "Witr", r: 3, sure: ["asr", "kauthar", "ikhlas"], witr: true }
+    fadschr: { titel: "Fadschr", r: 2, teile: [["sunna", 2], ["fard", 2]], sure: ["kauthar", "ikhlas"] },
+    dhuhr: { titel: "Dhuhr", r: 4, teile: [["sunna", 4], ["fard", 4], ["sunna", 2]], sure: ["asr", "kauthar", "nasr", "ikhlas"] },
+    asr: { titel: "Asr", r: 4, teile: [["fard", 4]], sure: ["kauthar", "nasr"] },
+    maghrib: { titel: "Maghrib", r: 3, teile: [["fard", 3], ["sunna", 2]], sure: ["kauthar", "ikhlas"] },
+    ischa: { titel: "Ischa", r: 4, teile: [["fard", 4], ["sunna", 2]], sure: ["nasr", "ikhlas"] },
+    witr: { titel: "Witr", r: 3, teile: [["witr", 3]], sure: ["asr", "kauthar", "ikhlas"], witr: true }
   };
+  var TEILNAME = { sunna: "Sunna", fard: "Fard", witr: "Witr" };
+  function teileText(P) { return P.teile.map(function (t) { return t[1] + " " + TEILNAME[t[0]]; }).join(" + "); }
+  function rakaGesamt(P) { return P.teile.reduce(function (a, t) { return a + t[1]; }, 0); }
   var REIHE = ["fadschr", "dhuhr", "asr", "maghrib", "ischa", "witr"];
   var NOTIZ = { /* Saetze woertlich aus gebet.js (Kapitel zwei_rakat) */
     takbir: { m: "Mädchen heben die Hände hanafitisch nur bis zu den Schultern.", j: "Heb die Hände, bis die Daumen die Ohrläppchen fast berühren." },
@@ -10892,50 +10901,55 @@ window.WISSEN_DATA = {
     for (var i = 0; i < k.schritte.length; i++) if (k.schritte[i].nr === nr) return k.schritte[i].text || "";
     return "";
   }
-  /* Ablauf eines Gebets als Liste von Schritten */
+  /* Ablauf eines Gebets als Liste von Schritten: alle Einheiten (Sunna, Fard, Witr) hintereinander */
   function bauenGebet(id, api) {
     var P = PAR[id]; if (!P) return [];
-    var R = P.r, steps = [], r, name = P.titel;
-    function add(o) { o.zeilen = o.zeilen || []; steps.push(o); return o; }
-    function pre(r, t) { return "Rak'a " + r + " von " + R + ": " + t; }
+    var steps = [], name = P.titel, nT = P.teile.length;
     var takb = function () { return zl(api, "takbir")[0]; };
     var nj = txt(api, "zwei_rakat", 1).split(" Nimm dir")[0];
-    add({ haltung: "stehen", art: "niyya", rakaNr: 1, titel: "Vorbereitung: Absicht (Niyya)", text: nj + " Nimm dir im Herzen vor: Ich bete die " + R + " Rak'at " + (P.witr ? "Witr" : "Fard vom " + name) + "." });
-    add({ haltung: "takbir", art: "takbir", rakaNr: 1, titel: pre(1, "Takbir zum Beginn"), zeilen: zl(api, "takbir"), text: txt(api, "zwei_rakat", 2), note: NOTIZ.takbir });
-    add({ haltung: "haende_binden", art: "binden", rakaNr: 1, titel: pre(1, "Hände binden"), text: txt(api, "zwei_rakat", 3), note: NOTIZ.binden });
-    for (r = 1; r <= R; r++) {
-      var sure = (!P.witr && r <= 2) || (P.witr && r <= 3);
-      if (r === 1) {
-        add({ haltung: "haende_binden", art: "thana", rakaNr: r, titel: pre(r, "Thana"), zeilen: zl(api, "thana"), text: txt(api, "zwei_rakat", 4) });
-        add({ haltung: "haende_binden", art: "taawwudh", rakaNr: r, titel: pre(r, "Ta'awwudh"), zeilen: zl(api, "taawwudh"), text: txt(api, "zwei_rakat", 5) });
+    P.teile.forEach(function (teil, ti) {
+      var art = teil[0], R = teil[1], tn = TEILNAME[art], r;
+      var alleSuren = art !== "fard";
+      function add(o) { o.zeilen = o.zeilen || []; o.teil = ti; o.teilName = tn; o.rakaVon = R; steps.push(o); return o; }
+      function pre(r, t) { return (nT > 1 ? tn + ", " : "") + "Rak'a " + r + " von " + R + ": " + t; }
+      var erste = ti === 0;
+      add({ haltung: "stehen", art: "niyya", rakaNr: 1, titel: (nT > 1 ? tn + ": " : "") + "Absicht (Niyya)", text: (erste ? nj + " " : (nT > 1 ? "Steh auf für den nächsten Teil. " : "")) + "Nimm dir im Herzen vor: Ich bete die " + R + " Rak'at " + (art === "witr" ? "Witr" : tn + " vom " + name) + "." });
+      add({ haltung: "takbir", art: "takbir", rakaNr: 1, titel: pre(1, "Takbir zum Beginn"), zeilen: zl(api, "takbir"), text: erste ? txt(api, "zwei_rakat", 2) : "", note: NOTIZ.takbir });
+      add({ haltung: "haende_binden", art: "binden", rakaNr: 1, titel: pre(1, "Hände binden"), text: erste ? txt(api, "zwei_rakat", 3) : "", note: NOTIZ.binden });
+      for (r = 1; r <= R; r++) {
+        var sure = alleSuren || r <= 2, ausf = erste && r === 1;
+        if (r === 1) {
+          add({ haltung: "haende_binden", art: "thana", rakaNr: r, titel: pre(r, "Thana"), zeilen: zl(api, "thana"), text: ausf ? txt(api, "zwei_rakat", 4) : "" });
+          add({ haltung: "haende_binden", art: "taawwudh", rakaNr: r, titel: pre(r, "Ta'awwudh"), zeilen: zl(api, "taawwudh"), text: ausf ? txt(api, "zwei_rakat", 5) : "" });
+        }
+        add({ haltung: "haende_binden", art: "basmala", rakaNr: r, titel: pre(r, "Basmala"), zeilen: zl(api, "basmala"), text: ausf ? txt(api, "zwei_rakat", 6) : "" });
+        add({ haltung: "haende_binden", art: "fatiha", rakaNr: r, titel: pre(r, "Fatiha"), zeilen: zl(api, "fatiha"), text: ausf ? txt(api, "zwei_rakat", 7) : "" });
+        if (sure) add({ haltung: "haende_binden", art: "amin", rakaNr: r, titel: pre(r, "Amin (leise)"), zeilen: zl(api, "amin"), text: ausf ? txt(api, "zwei_rakat", 8) : "" });
+        if (sure) {
+          var sid = P.sure[(r - 1) % P.sure.length], sd = api.byId(sid);
+          add({ haltung: "haende_binden", art: "sure", rakaNr: r, titel: pre(r, "Kurze Sure: " + (sd ? sd.titel : sid)), zeilen: zl(api, sid), hinweis: "Beispiel, du kannst jede kurze Sure nehmen.", text: ausf ? txt(api, "zwei_rakat", 9) : "" });
+        }
+        if (art === "witr" && r === 3) {
+          add({ haltung: "qunut_takbir", art: "qunut_takbir", rakaNr: r, titel: pre(r, "Allaahu akbar, Hände heben"), zeilen: zl(api, "takbir"), text: txt(api, "vier_rakat", 6) });
+          add({ haltung: "haende_binden", art: "qunut", rakaNr: r, titel: pre(r, "Qunut"), zeilen: zl(api, "qunut_hanafi") });
+        }
+        add({ haltung: "ruku", art: "ruku", rakaNr: r, titel: pre(r, "Ruku"), vor: takb(), zeilen: zl(api, "ruku"), mal: 3, text: ausf ? txt(api, "zwei_rakat", 10) : "", note: NOTIZ.ruku });
+        add({ haltung: "aufrichten", art: "aufrichten", rakaNr: r, titel: pre(r, "Aufrichten"), zeilen: zl(api, "sami").concat(zl(api, "rabbana_lakal_hamd")), text: ausf ? txt(api, "zwei_rakat", 11) : "" });
+        add({ haltung: "sudschud", art: "sudschud", rakaNr: r, titel: pre(r, "Erster Sudschud"), vor: takb(), zeilen: zl(api, "sudschud"), mal: 3, text: ausf ? txt(api, "zwei_rakat", 13) : "", note: NOTIZ.sudschud });
+        add({ haltung: "sitzen", art: "sitzen", rakaNr: r, titel: pre(r, "Sitzen zwischen den Sudschud"), vor: takb(), zeilen: zl(api, "zwischen_sudschud"), hinweis: "Du kannst Rabbigh-fir lii sagen.", text: ausf ? txt(api, "zwei_rakat", 14) : "", note: NOTIZ.sitzen });
+        add({ haltung: "sudschud", art: "sudschud", rakaNr: r, titel: pre(r, "Zweiter Sudschud"), vor: takb(), zeilen: zl(api, "sudschud"), mal: 3, text: ausf ? txt(api, "zwei_rakat", 15) : "" });
+        if (r === R) {
+          add({ haltung: "sitzen", art: "tahiyyat", rakaNr: r, titel: pre(r, "Letzter Sitz: Tahiyyat"), vor: takb(), zeilen: zl(api, "tahiyyat"), text: erste ? txt(api, "zwei_rakat", 20) : "", note: NOTIZ.sitzen });
+          add({ haltung: "sitzen", art: "salawat", rakaNr: r, titel: pre(r, "Salawat"), zeilen: zl(api, "salawat"), text: erste ? txt(api, "zwei_rakat", 21) : "" });
+          add({ haltung: "sitzen", art: "dua", rakaNr: r, titel: pre(r, "Dua"), zeilen: zl(api, "rabbana_atina"), text: erste ? txt(api, "zwei_rakat", 22) : "" });
+          add({ haltung: "salam_rechts", art: "salam", rakaNr: r, titel: pre(r, "Salam rechts"), zeilen: zl(api, "salam_gebet"), text: erste ? txt(api, "zwei_rakat", 23) : "" });
+          add({ haltung: "salam_links", art: "salam", rakaNr: r, titel: pre(r, "Salam links"), zeilen: zl(api, "salam_gebet"), text: erste ? txt(api, "zwei_rakat", 24) : "" });
+        } else {
+          if (r === 2) add({ haltung: "sitzen", art: "tahiyyat", rakaNr: r, titel: pre(r, "Erster Sitz: nur Tahiyyat"), vor: takb(), zeilen: zl(api, "tahiyyat"), text: txt(api, "vier_rakat", 1), note: NOTIZ.sitzen });
+          add({ haltung: "stehen", art: "aufstehen", rakaNr: r + 1, titel: pre(r + 1, "Aufstehen"), vor: takb(), text: r === 2 ? txt(api, "vier_rakat", 2) : txt(api, "zwei_rakat", 16) });
+        }
       }
-      add({ haltung: "haende_binden", art: "basmala", rakaNr: r, titel: pre(r, "Basmala"), zeilen: zl(api, "basmala"), text: r === 1 ? txt(api, "zwei_rakat", 6) : "" });
-      add({ haltung: "haende_binden", art: "fatiha", rakaNr: r, titel: pre(r, "Fatiha"), zeilen: zl(api, "fatiha"), text: r === 1 ? txt(api, "zwei_rakat", 7) : "" });
-      if (r <= 2) add({ haltung: "haende_binden", art: "amin", rakaNr: r, titel: pre(r, "Amin (leise)"), zeilen: zl(api, "amin"), text: r === 1 ? txt(api, "zwei_rakat", 8) : "" });
-      if (sure) {
-        var sid = P.sure[r - 1], sd = api.byId(sid);
-        add({ haltung: "haende_binden", art: "sure", rakaNr: r, titel: pre(r, "Kurze Sure: " + (sd ? sd.titel : sid)), zeilen: zl(api, sid), hinweis: "Beispiel, du kannst jede kurze Sure nehmen.", text: r === 1 ? txt(api, "zwei_rakat", 9) : "" });
-      }
-      if (P.witr && r === 3) {
-        add({ haltung: "qunut_takbir", art: "qunut_takbir", rakaNr: r, titel: pre(r, "Allaahu akbar, Hände heben"), zeilen: zl(api, "takbir"), text: txt(api, "vier_rakat", 6) });
-        add({ haltung: "haende_binden", art: "qunut", rakaNr: r, titel: pre(r, "Qunut"), zeilen: zl(api, "qunut_hanafi") });
-      }
-      add({ haltung: "ruku", art: "ruku", rakaNr: r, titel: pre(r, "Ruku"), vor: takb(), zeilen: zl(api, "ruku"), mal: 3, text: txt(api, "zwei_rakat", 10), note: NOTIZ.ruku });
-      add({ haltung: "aufrichten", art: "aufrichten", rakaNr: r, titel: pre(r, "Aufrichten"), zeilen: zl(api, "sami").concat(zl(api, "rabbana_lakal_hamd")), text: txt(api, "zwei_rakat", 11) });
-      add({ haltung: "sudschud", art: "sudschud", rakaNr: r, titel: pre(r, "Erster Sudschud"), vor: takb(), zeilen: zl(api, "sudschud"), mal: 3, text: txt(api, "zwei_rakat", 13), note: NOTIZ.sudschud });
-      add({ haltung: "sitzen", art: "sitzen", rakaNr: r, titel: pre(r, "Sitzen zwischen den Sudschud"), vor: takb(), zeilen: zl(api, "zwischen_sudschud"), hinweis: "Du kannst Rabbigh-fir lii sagen.", text: txt(api, "zwei_rakat", 14), note: NOTIZ.sitzen });
-      add({ haltung: "sudschud", art: "sudschud", rakaNr: r, titel: pre(r, "Zweiter Sudschud"), vor: takb(), zeilen: zl(api, "sudschud"), mal: 3, text: txt(api, "zwei_rakat", 15) });
-      if (r === R) {
-        add({ haltung: "sitzen", art: "tahiyyat", rakaNr: r, titel: pre(r, "Letzter Sitz: Tahiyyat"), zeilen: zl(api, "tahiyyat"), text: txt(api, "zwei_rakat", 20), note: NOTIZ.sitzen });
-        add({ haltung: "sitzen", art: "salawat", rakaNr: r, titel: pre(r, "Salawat"), zeilen: zl(api, "salawat"), text: txt(api, "zwei_rakat", 21) });
-        add({ haltung: "sitzen", art: "dua", rakaNr: r, titel: pre(r, "Dua"), zeilen: zl(api, "rabbana_atina"), text: txt(api, "zwei_rakat", 22) });
-        add({ haltung: "salam_rechts", art: "salam", rakaNr: r, titel: pre(r, "Salam rechts"), zeilen: zl(api, "salam_gebet"), text: txt(api, "zwei_rakat", 23) });
-        add({ haltung: "salam_links", art: "salam", rakaNr: r, titel: pre(r, "Salam links"), zeilen: zl(api, "salam_gebet"), text: txt(api, "zwei_rakat", 24) });
-      } else {
-        if (r === 2) add({ haltung: "sitzen", art: "tahiyyat", rakaNr: r, titel: pre(r, "Erster Sitz: nur Tahiyyat"), zeilen: zl(api, "tahiyyat"), text: txt(api, "vier_rakat", 1), note: NOTIZ.sitzen });
-        add({ haltung: "stehen", art: "aufstehen", rakaNr: r + 1, titel: pre(r + 1, "Aufstehen"), vor: takb(), text: r === 2 ? txt(api, "vier_rakat", 2) : txt(api, "zwei_rakat", 16) });
-      }
-    }
+    });
     return steps;
   }
   function zahl(w) { var m = /(\d+)\s*x/.exec(w || ""); return m ? parseInt(m[1], 10) : 1; }
@@ -10946,6 +10960,67 @@ window.WISSEN_DATA = {
       steps.push({ szene: sz || "figur", haltung: "stehen", art: sz || "figur", titel: s.nr + ". " + s.titel, zeilen: s.dua_id ? zl(api, s.dua_id) : [], zaehl: n, text: s.text || "", nr: s.nr });
     });
     return steps;
+  }
+
+  /* ---------- Video-Figur (nur Webversion, window.GEBET_VIDEO): 3D-Figur aus kurzen Clips zwischen 9 Haltungen ---------- */
+  function poseVon(s) {
+    switch (s.haltung) {
+      case "takbir": case "qunut_takbir": return "P2";
+      case "haende_binden": return "P1";
+      case "ruku": return "P3";
+      case "aufrichten": return "P4";
+      case "sudschud": return "P5";
+      case "salam_rechts": return "P8";
+      case "salam_links": return "P9";
+      case "sitzen": return s.art === "tahiyyat" ? "P7" : "P6";
+      default: return s.art === "niyya" ? "P4" : "P1";
+    }
+  }
+  function videoDa() { return !!(window.GEBET_VIDEO && window.GEBET_VIDEO.clips); }
+  function videoFigur(stage, g0) {
+    var V = window.GEBET_VIDEO, g = g0, pose = null, lauf = 0;
+    stage.innerHTML = '<div class="vf"><img class="vf-bild" alt=""><video class="vf-v a" muted playsinline preload="auto"></video><video class="vf-v b" muted playsinline preload="auto"></video></div>';
+    var box = stage.firstChild, bild = box.querySelector("img"), vids = box.querySelectorAll("video"), akt = 0;
+    stage.classList.add("vf-stage");
+    function gr(x) { return window.Figur && window.Figur.bas ? window.Figur.bas(x) : (x === "j" || x === "mn" ? "j" : "m"); }
+    function url(x, name) { return V.basis + gr(x) + "/" + name; }
+    function weg1(von, nach) { /* kuerzester Weg: zuerst nur echte Clips, sonst auch umgekehrte */
+      var a = wegUeber((V.vor && V.vor[gr(g)]) || [], von, nach), b = wegUeber(V.clips[gr(g)] || [], von, nach);
+      return a && (!b || a.length <= b.length) ? a : b;
+    }
+    function wegUeber(kanten, von, nach) {
+      var vor = {}, q = [von], k; vor[von] = null;
+      while (q.length) { var a = q.shift(); if (a === nach) break; for (k = 0; k < kanten.length; k++) { var e = kanten[k].split("_"); if (e[0] === a && !(e[1] in vor)) { vor[e[1]] = a; q.push(e[1]); } } }
+      if (!(nach in vor)) return null;
+      var w = [], c = nach; while (vor[c] !== null) { w.unshift(vor[c] + "_" + c); c = vor[c]; } return w;
+    }
+    function standbild(p) { bild.src = url(g, p + ".jpg"); bild.style.opacity = "1"; vids[0].style.opacity = vids[1].style.opacity = "0"; try { vids[0].pause(); vids[1].pause(); } catch (e) { } }
+    function rate() { var st = window.Figur && window.Figur.tempoStufe ? window.Figur.tempoStufe() : "normal"; return st === "langsam" ? 1.0 : st === "schnell" ? 1.6 : 1.3; }
+    function spiele(liste, my) {
+      if (my !== lauf || !liste.length) return;
+      var nv = vids[1 - akt], alt = vids[akt], fertig = false;
+      nv.src = url(g, liste[0] + ".mp4"); nv.playbackRate = rate();
+      nv.onended = function () { if (fertig) return; fertig = true; spiele(liste.slice(1), my); };
+      nv.oncanplay = function () {
+        nv.oncanplay = null; if (my !== lauf) return;
+        try { nv.playbackRate = rate(); var pr = nv.play(); if (pr && pr.catch) pr.catch(function () { standbild(liste[liste.length - 1].split("_")[1]); }); } catch (e) { }
+        nv.style.opacity = "1"; alt.style.opacity = "0"; bild.style.opacity = "0"; akt = 1 - akt;
+      };
+      nv.onerror = function () { if (my === lauf) standbild(liste[liste.length - 1].split("_")[1]); };
+      try { nv.load(); } catch (e) { }
+    }
+    /* set: Haltung zeigen. Gibt die Dauer der Bewegung in ms zurueck (0 = sofort). */
+    function set(s, gNeu, sofort) {
+      var p = poseVon(s), wechsel = gNeu && gr(gNeu) !== gr(g);
+      if (gNeu) g = gNeu;
+      lauf++;
+      if (sofort || wechsel || !pose || pose === p) { pose = p; if (sofort || wechsel || !box.dataset.da) { standbild(p); box.dataset.da = "1"; } return 0; }
+      var w = weg1(pose, p); pose = p;
+      if (!w || w.length > 3) { standbild(p); return 0; }
+      spiele(w, lauf);
+      return Math.round(w.length * 3000 / rate());
+    }
+    return { set: set, weg: function () { lauf++; try { vids[0].pause(); vids[1].pause(); } catch (e) { } stage.classList.remove("vf-stage"); }, ansicht: function () { } };
   }
 
   /* ---------- Player ---------- */
@@ -10961,6 +11036,7 @@ window.WISSEN_DATA = {
     var i = Math.max(0, Math.min(n - 1, o.start || 0)), spielt = false, tok = 0, cnt = 0, aktZeile = -1, fertig = false;
     var fig = null, szen = null, wl = null, warTimer = null, aktTyp = "";
     var hatFigur = !wudu || steps.some(function (x) { return x.szene === "figur"; });
+    var vid = !wudu && videoDa();
     root.innerHTML = '<div class="pl-wrap"><div class="pl-buehne"><div class="pl-kopfzeile"><div class="pl-raka"></div><div class="pl-gender">' + (F.erw(g) ? '<button data-g="fr">Frau</button><button data-g="mn">Mann</button>' : '<button data-g="m">Mädchen</button><button data-g="j">Junge</button>') + '</div></div><div class="pl-stage"></div>' +
       (hatFigur ? '<div class="pl-ansicht" role="group" aria-label="Ansicht der Figur"><button type="button" data-v="seite">Seite</button><button type="button" data-v="vorne">Vorne</button><button type="button" data-v="beide">Beide</button></div>' : '') + '</div>' +
       '<div class="pl-karte" id="plkarte"></div><div class="pl-leiste"><div class="pl-balken" id="plbalken"><div class="sp"></div><div class="fl"></div><span id="plinfo" class="pl-info"></span></div>' +
@@ -11002,7 +11078,7 @@ window.WISSEN_DATA = {
     /* Marker */
     if (!wudu) {
       var seen = {};
-      steps.forEach(function (s, idx) { if (!seen[s.rakaNr]) { seen[s.rakaNr] = 1; var m = document.createElement("div"); m.className = "mk"; m.style.left = (n > 1 ? idx / (n - 1) * 100 : 0) + "%"; m.innerHTML = "<b>R" + s.rakaNr + "</b>"; balken.appendChild(m); } });
+      steps.forEach(function (s, idx) { var mk = (s.teil || 0) + ":" + s.rakaNr; if (!seen[mk]) { seen[mk] = 1; var m = document.createElement("div"); m.className = "mk"; m.style.left = (n > 1 ? idx / (n - 1) * 100 : 0) + "%"; m.innerHTML = "<b>R" + s.rakaNr + "</b>"; balken.appendChild(m); } });
     }
     function wake(an) {
       try {
@@ -11012,6 +11088,13 @@ window.WISSEN_DATA = {
     }
     function buehneZeigen(s, sofort) {
       var typ = s.szene && s.szene !== "figur" ? "s:" + s.szene : "f";
+      if (typ === "f" && vid) {
+        if (szen) { szen.weg(); szen = null; }
+        if (!fig || aktTyp !== "f") fig = videoFigur(stage, g);
+        aktTyp = "f";
+        var ab0 = root.querySelector(".pl-ansicht"); if (ab0) ab0.style.display = "none";
+        return fig.set(s, g, !!sofort) || 0;
+      }
       if (typ === "f") {
         if (szen) { szen.weg(); szen = null; }
         if (!fig || aktTyp !== "f") { stage.innerHTML = ""; fig = window.Figur.create(stage, { g: g, name: s.haltung, ansicht: ansichtWert() }); fig.set(s.haltung, g, true); }
@@ -11042,7 +11125,7 @@ window.WISSEN_DATA = {
       if (s.text) h += '<p class="pl-text">' + esc(s.text) + "</p>";
       karte.innerHTML = h; karte.scrollTop = 0;
       var a = karte.querySelector(".pl-zeile.aktiv"); if (a && a.scrollIntoView) { try { a.scrollIntoView({ block: "nearest" }); } catch (e) { } }
-      raka.textContent = wudu ? "Schritt " + (i + 1) + " von " + n : "Rak'a " + s.rakaNr + " von " + o.raka;
+      raka.textContent = wudu ? "Schritt " + (i + 1) + " von " + n : (s.teilName && o.teile > 1 ? s.teilName + ", " : "") + "Rak'a " + s.rakaNr + " von " + (s.rakaVon || o.raka);
       fl.style.width = (n > 1 ? i / (n - 1) * 100 : 100) + "%";
       root.querySelector("#plinfo").textContent = "Schritt " + (i + 1) + " von " + n;
       root.querySelector("#plzur").disabled = i === 0;
@@ -11095,8 +11178,8 @@ window.WISSEN_DATA = {
     function zeigen(auto) {
       tok++; var my = tok; api.stopp();
       cnt = 0; aktZeile = -1; if (!auto) fertig = fertig && false;
-      buehneZeigen(steps[i], false); karteZeigen();
-      if (spielt) warte(pause(850), my, function () { if (my === tok && spielt) schrittLaufen(my); });
+      var bew = buehneZeigen(steps[i], vid ? !auto : false) || 0; karteZeigen();
+      if (spielt) warte(Math.max(pause(850), vid ? bew * 0.8 / speed() : 0), my, function () { if (my === tok && spielt) schrittLaufen(my); });
     }
     function setzePlay(an) {
       spielt = an; wake(an);
@@ -11111,7 +11194,7 @@ window.WISSEN_DATA = {
     });
     window.addEventListener("resize", ansichtZeigen);
     Array.prototype.forEach.call(root.querySelectorAll(".pl-gender button"), function (b) {
-      b.onclick = function () { g = b.getAttribute("data-g"); einst.figur = g; api.sichern(); if (szen) szen.setG(g); if (fig) fig.set(steps[i].haltung, g, false); karteZeigen(); };
+      b.onclick = function () { g = b.getAttribute("data-g"); einst.figur = g; api.sichern(); if (szen) szen.setG(g); if (fig) { if (vid) fig.set(steps[i], g, true); else fig.set(steps[i].haltung, g, false); } karteZeigen(); };
     });
     function seek(e) { var r = balken.getBoundingClientRect(), x = (e.clientX - r.left) / r.width; var j = Math.round(Math.max(0, Math.min(1, x)) * (n - 1)); if (j !== i) { i = j; fertig = false; zeigen(false); } }
     balken.addEventListener("click", seek);
@@ -11122,7 +11205,7 @@ window.WISSEN_DATA = {
     buehneZeigen(steps[i], true); karteZeigen(); ansichtZeigen();
     return { weg: weg, state: function () { return { i: i, n: n, spielt: spielt, fertig: fertig }; } };
   }
-  window.Player = { PAR: PAR, REIHE: REIHE, bauenGebet: bauenGebet, bauenWudu: bauenWudu, start: start, wuduSzene: wuduSzene };
+  window.Player = { PAR: PAR, REIHE: REIHE, teileText: teileText, rakaGesamt: rakaGesamt, poseVon: poseVon, bauenGebet: bauenGebet, bauenWudu: bauenWudu, start: start, wuduSzene: wuduSzene };
 })();
 
 </script>
@@ -11243,6 +11326,7 @@ window.STUFEN_DATA = [
 
 </script>
 <script>
+window.GEBET_VIDEO = {"basis":"gebet/","clips":{"j":["P1_P2","P1_P3","P1_P5","P1_P7","P2_P1","P2_P4","P3_P1","P3_P4","P4_P2","P4_P3","P4_P5","P4_P9","P5_P1","P5_P4","P5_P6","P6_P5","P6_P7","P6_P8","P7_P1","P7_P6","P7_P8","P8_P6","P8_P7","P8_P9","P9_P4","P9_P8"],"m":["P1_P2","P1_P3","P1_P5","P1_P7","P2_P1","P2_P4","P3_P1","P3_P4","P4_P2","P4_P3","P4_P5","P4_P9","P5_P1","P5_P4","P5_P6","P6_P5","P6_P7","P6_P8","P7_P1","P7_P6","P7_P8","P8_P6","P8_P7","P8_P9","P9_P4","P9_P8"]},"vor":{"j":["P1_P2","P1_P3","P2_P1","P3_P4","P4_P2","P4_P5","P5_P1","P5_P6","P6_P5","P6_P7","P6_P8","P7_P1","P7_P8","P8_P9","P9_P4"],"m":["P1_P2","P1_P3","P2_P1","P3_P4","P4_P2","P4_P5","P5_P1","P5_P6","P6_P5","P6_P7","P6_P8","P7_P1","P7_P8","P8_P9","P9_P4"]}};
 window.WEB_APP = true;
 window.AUDIO = {};
 window.AUDIO_BASIS = "audio/";
@@ -12698,10 +12782,10 @@ window.AUDIO_ZUORD = {"abasa_0":"abasa_0","abasa_1":"abasa_1","abasa_10":"abasa_
   function seiteAnsehenWahl() {
     if (!HAT_GEBET || !window.Player) return kommtBald();
     stopp();
-    var h = '<section class="karte"><p class="sk-text" style="margin:0">Eine Figur zeigt dir das Gebet Schritt für Schritt. Du hörst und siehst, was du sagst. Hier ist immer nur das Fard-Gebet gezeigt.</p></section><div class="liste gebet-wahl">';
+    var h = '<section class="karte"><p class="sk-text" style="margin:0">Eine Figur zeigt dir das ganze Gebet von Anfang bis Ende, mit Sunna und Fard nach der hanafitischen Schule. Drück einmal auf Abspielen, dann läuft alles von selbst. Was man dreimal sagt, hörst du dreimal.</p></section><div class="liste gebet-wahl">';
     window.Player.REIHE.forEach(function (id) {
       var P = window.Player.PAR[id];
-      h += '<a class="eintrag" href="#/beten/ansehen/' + id + '"><div class="nr">▶</div><div class="txt"><b>' + esc(P.titel) + '</b><small>' + P.r + " Rak'at" + (P.witr ? " mit Qunut" : " Fard") + "</small></div></a>";
+      h += '<a class="eintrag" href="#/beten/ansehen/' + id + '"><div class="nr">▶</div><div class="txt"><b>' + esc(P.titel) + '</b><small>' + (window.Player.teileText ? window.Player.teileText(P) : P.r + " Rak'at") + (P.witr ? " mit Qunut" : "") + "</small></div></a>";
     });
     h += '</div><p><a class="btn zweit" href="#/beten/wudu/ansehen">▶ Wudu ansehen</a></p>';
     rahmen("Gebet ansehen", h, "start", true);
@@ -12718,7 +12802,7 @@ window.AUDIO_ZUORD = {"abasa_0":"abasa_0","abasa_1":"abasa_1","abasa_10":"abasa_
     rahmen(titel, (kk ? '<div class="pl-ctx">' + kk + kontextWeiter(kt, id, true) + "</div>" : "") + '<div id="plroot"></div>', "start", true);
     app.className = "pl";
     var nv = app.querySelector(".nav"); if (nv) nv.remove();
-    window.Player.start(document.getElementById("plroot"), { steps: steps, typ: typ, id: id, api: playerApi, raka: raka });
+    window.Player.start(document.getElementById("plroot"), { steps: steps, typ: typ, id: id, api: playerApi, raka: raka, teile: P && P.teile ? P.teile.length : 1 });
   }
   /* Uebersicht aller Haltungen (versteckte Seite #/figur, zum Pruefen) */
   function seiteFigur() {
