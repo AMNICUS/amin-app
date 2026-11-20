@@ -471,9 +471,6 @@ h3.abschn{margin-top:14px}
 .prompter .pr-block{padding:6px 8px;margin:2px 0;border-radius:14px;opacity:.5;cursor:pointer;transition:opacity .35s,background .35s}
 .prompter .pr-block.vorbei{opacity:.3}
 .prompter .pr-block.jetzt{opacity:1;background:var(--card);box-shadow:0 0 0 2px var(--line) inset;cursor:default}
-.prompter .pr-block:not(.jetzt) .pl-titel{font-size:.95rem;color:var(--soft)}
-.prompter .pr-block:not(.jetzt) .pl-zaehler{display:none}
-.prompter .pr-block:not(.jetzt) .pl-zeile .ar{font-size:1.35rem;line-height:1.7}
 .prompter .pr-ende{height:60%}
 .pl-zeile.gesagt{opacity:.55}
  /* Figur und Text nebeneinander ab 600 px, am Handy untereinander (Text breiter) */
@@ -485,6 +482,8 @@ h3.abschn{margin-top:14px}
  .pl-wrap.mit-video .pl-leiste{grid-column:1 / span 2;grid-row:2}
 }
 @media (min-width:900px){.pl-wrap.mit-video{grid-template-columns:minmax(380px,1fr) minmax(0,1.3fr)}}
+.pr-mal{font-size:.75rem;font-weight:800;color:var(--soft);text-transform:none;margin-bottom:-4px}
+.pl-zeile.aktiv .pr-mal{color:var(--gold)}
 
 </style>
 </head>
@@ -11130,20 +11129,21 @@ window.WISSEN_DATA = {
       aktTyp = typ === "f" ? "f" : typ;
       var ab = root.querySelector(".pl-ansicht"); if (ab) { ab.style.visibility = typ === "f" ? "visible" : "hidden"; ab.setAttribute("aria-hidden", typ === "f" ? "false" : "true"); }
     }
-    function zeileHtml(z, cls, idx) {
+    function zeileHtml(z, cls, idx, mal) {
       var sh = einst.show || { ar: true, de: true }, h = '<div class="pl-zeile ' + cls + '" data-z="' + idx + '">';
+      if (mal) h += '<div class="pr-mal">' + esc(mal) + "</div>";
       if (sh.ar !== false) h += '<div class="ar" dir="rtl" lang="ar">' + esc(z.ar) + "</div>";
       h += '<div class="laut">' + esc(z.laut) + "</div>";
       if (sh.de !== false) h += '<div class="de">' + esc(z.de) + "</div>";
       return h + "</div>";
     }
     /* Text als Prompter: ganzes Gebet untereinander, aktueller Schritt markiert, Rest als Vorschau, scrollt mit */
-    var prompter = !wudu;
+    var prompter = !wudu, rollZiel = null;
     function blockKopf(s, idx) {
       var h = '<div class="pl-titel">' + esc(s.titel) + "</div>", N = s.mal || s.zaehl || 1;
       if (N > 1) { h += '<div class="pl-zaehler" aria-label="Zähler">'; for (var c = 1; c <= N; c++) h += "<i>" + c + "</i>"; h += "</div>"; }
       if (s.vor) h += zeileHtml(s.vor, "vor", "v");
-      s.zeilen.forEach(function (z, k) { h += zeileHtml(z, "", k); });
+      for (var r = 1; r <= (s.mal || 1); r++) s.zeilen.forEach(function (z, k) { h += zeileHtml(z, "", (r - 1) * 100 + k, s.mal > 1 ? r + ". Mal" : ""); });
       return h + '<div class="pr-info"></div>';
     }
     function infoHtml(s) {
@@ -11165,17 +11165,21 @@ window.WISSEN_DATA = {
     function block() { return prompter ? karte.querySelector('.pr-block[data-s="' + i + '"]') : karte; }
     function hinRollen(el, weich) {
       if (!el) return;
-      var ziel = el.offsetTop - karte.clientHeight * 0.22;
+      var ziel = Math.round(el.offsetTop - karte.clientHeight * 0.22);
+      if (Math.abs(ziel - (rollZiel == null ? karte.scrollTop : rollZiel)) < 6) return;
+      rollZiel = ziel;
       try { karte.scrollTo({ top: Math.max(0, ziel), behavior: weich ? "smooth" : "auto" }); } catch (e) { karte.scrollTop = Math.max(0, ziel); }
     }
     function karteZeigen() {
       var s = steps[i];
       if (prompter) {
-        Array.prototype.forEach.call(karte.querySelectorAll(".pr-block.jetzt"), function (bl) { bl.classList.remove("jetzt"); bl.querySelector(".pr-info").innerHTML = ""; });
+        /* Hoehe der Bloecke oberhalb nie aendern, sonst springt der Text: Info bleibt stehen, nur Farbe wechselt */
+        Array.prototype.forEach.call(karte.querySelectorAll(".pr-block.jetzt"), function (bl) { bl.classList.remove("jetzt"); });
         Array.prototype.forEach.call(karte.querySelectorAll(".pr-block"), function (bl) { bl.classList.toggle("vorbei", +bl.getAttribute("data-s") < i); });
-        var bl = block(); bl.classList.add("jetzt"); bl.querySelector(".pr-info").innerHTML = infoHtml(s);
+        var bl = block(); bl.classList.add("jetzt"); var inf = bl.querySelector(".pr-info"); if (!inf.dataset.da) { inf.innerHTML = infoHtml(s); inf.dataset.da = "1"; }
+        Array.prototype.forEach.call(bl.querySelectorAll(".pl-zeile.gesagt"), function (z) { z.classList.remove("gesagt"); });
         markiere(true);
-        hinRollen(bl, true);
+        hinRollen(bl.querySelector(".pl-zeile") || bl, true);
       } else {
         var h = blockKopf(s, i);
         karte.innerHTML = h; karte.querySelector(".pr-info").outerHTML = infoHtml(s); karte.scrollTop = 0;
@@ -11194,12 +11198,12 @@ window.WISSEN_DATA = {
     function markiere(ohneRollen) { /* nur Zeilen und Zaehler im aktuellen Schritt */
       var bl = block(); if (!bl) return;
       var z = bl.querySelectorAll(".pl-zeile"), k;
-      for (k = 0; k < z.length; k++) { var dz = z[k].getAttribute("data-z"); z[k].classList.toggle("aktiv", dz === String(aktZeile)); z[k].classList.toggle("gesagt", dz !== "v" && aktZeile >= 0 && +dz < aktZeile); }
+      for (k = 0; k < z.length; k++) { var dz = z[k].getAttribute("data-z"); z[k].classList.toggle("aktiv", dz === String(aktZeile)); if (aktZeile >= 0) z[k].classList.toggle("gesagt", dz !== "v" && +dz < aktZeile); }
       var zc = bl.querySelectorAll(".pl-zaehler i");
       for (k = 0; k < zc.length; k++) { var c = k + 1; zc[k].className = c < cnt ? "fertig" : c === cnt ? "jetzt" : ""; }
       if (ohneRollen) return;
       var a = bl.querySelector(".pl-zeile.aktiv");
-      if (prompter) hinRollen(a || bl, true);
+      if (prompter) { if (a) hinRollen(a, true); }
       else if (a && a.scrollIntoView) { try { a.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) { } }
     }
     function warte(ms, my, cb) { if (warTimer) clearTimeout(warTimer); warTimer = setTimeout(function () { warTimer = null; if (my === tok && lebt()) cb(); }, ms * speed()); }
@@ -11222,9 +11226,9 @@ window.WISSEN_DATA = {
         if (my !== tok) return;
         if (p >= items.length) { aktZeile = -1; cnt = 0; markiere(); warte(pause(450), my, naechster); return; }
         var it = items[p++];
-        cnt = (s.mal || s.zaehl || 1) > 1 ? it.rep : 0; aktZeile = it.vor ? -1 : (it.idx == null ? -1 : it.idx);
+        cnt = (s.mal || s.zaehl || 1) > 1 ? it.rep : 0; aktZeile = it.vor ? -1 : (it.idx == null ? -1 : ((s.mal > 1 ? it.rep : 1) - 1) * 100 + it.idx);
         markiere();
-        if (it.vor) { var vz = block().querySelector('.pl-zeile[data-z="v"]'); if (vz) vz.classList.add("aktiv"); }
+        if (it.vor) { var vz = block().querySelector('.pl-zeile[data-z="v"]'); if (vz) { vz.classList.add("aktiv"); if (prompter) hinRollen(vz, true); } }
         else { var vz2 = block().querySelector('.pl-zeile[data-z="v"]'); if (vz2) vz2.classList.remove("aktiv"); }
         if (it.leer) warte((wudu && (s.zaehl || 1) > 1 ? pick({ langsam: 6.5, normal: 4.5, schnell: 3.2 }) : pick({ langsam: 5, normal: 3.2, schnell: 2.2 })) * 1000, my, weiter);
         else zeileSprechen(it.z, my, !!it.vor, weiter);
