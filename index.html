@@ -11176,7 +11176,8 @@ window.WISSEN_DATA = {
         /* Hoehe der Bloecke oberhalb nie aendern, sonst springt der Text: Info bleibt stehen, nur Farbe wechselt */
         Array.prototype.forEach.call(karte.querySelectorAll(".pr-block.jetzt"), function (bl) { bl.classList.remove("jetzt"); });
         Array.prototype.forEach.call(karte.querySelectorAll(".pr-block"), function (bl) { bl.classList.toggle("vorbei", +bl.getAttribute("data-s") < i); });
-        var bl = block(); bl.classList.add("jetzt"); var inf = bl.querySelector(".pr-info"); if (!inf.dataset.da) { inf.innerHTML = infoHtml(s); inf.dataset.da = "1"; }
+        var bl = block(); bl.classList.add("jetzt"); var inf = bl.querySelector(".pr-info"); if (inf.dataset.g !== g) { inf.innerHTML = infoHtml(s); inf.dataset.g = g; }
+        Array.prototype.forEach.call(karte.querySelectorAll(".pr-info[data-g]"), function (x) { if (x.dataset.g !== g) { x.innerHTML = infoHtml(steps[+x.parentNode.getAttribute("data-s")]); x.dataset.g = g; } });
         Array.prototype.forEach.call(bl.querySelectorAll(".pl-zeile.gesagt"), function (z) { z.classList.remove("gesagt"); });
         markiere(true);
         hinRollen(bl.querySelector(".pl-zeile") || bl, true);
